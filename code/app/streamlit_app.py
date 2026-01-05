@@ -266,9 +266,57 @@ def show_manual_input():
                 st.error("Error: Unable to get prediction")
 
 
+# Required columns for churn prediction
+REQUIRED_COLUMNS = [
+    "customerID", "gender", "SeniorCitizen", "Partner", "Dependents",
+    "tenure", "PhoneService", "MultipleLines", "InternetService",
+    "OnlineSecurity", "OnlineBackup", "DeviceProtection", "TechSupport",
+    "StreamingTV", "StreamingMovies", "Contract", "PaperlessBilling",
+    "PaymentMethod", "MonthlyCharges", "TotalCharges"
+]
+
+
+def validate_csv_columns(df):
+    """Validate that the CSV has the required columns for churn prediction."""
+    missing_cols = [col for col in REQUIRED_COLUMNS if col not in df.columns]
+    extra_cols = [col for col in df.columns if col not in REQUIRED_COLUMNS and col != "Churn"]
+    return missing_cols, extra_cols
+
+
 def show_csv_upload():
     """Show CSV upload form."""
     st.header("Upload CSV File")
+    
+    # Show expected format
+    with st.expander("📋 Expected CSV Format (Click to expand)"):
+        st.markdown("""
+        **Your CSV must contain these columns for Churn Prediction:**
+        
+        | Column | Type | Example |
+        |--------|------|---------|
+        | customerID | Text | 7590-VHVEG |
+        | gender | Text | Male/Female |
+        | SeniorCitizen | Number | 0 or 1 |
+        | Partner | Text | Yes/No |
+        | Dependents | Text | Yes/No |
+        | tenure | Number | 1-72 |
+        | PhoneService | Text | Yes/No |
+        | MultipleLines | Text | Yes/No/No phone service |
+        | InternetService | Text | DSL/Fiber optic/No |
+        | OnlineSecurity | Text | Yes/No/No internet service |
+        | OnlineBackup | Text | Yes/No/No internet service |
+        | DeviceProtection | Text | Yes/No/No internet service |
+        | TechSupport | Text | Yes/No/No internet service |
+        | StreamingTV | Text | Yes/No/No internet service |
+        | StreamingMovies | Text | Yes/No/No internet service |
+        | Contract | Text | Month-to-month/One year/Two year |
+        | PaperlessBilling | Text | Yes/No |
+        | PaymentMethod | Text | Electronic check/Mailed check/... |
+        | MonthlyCharges | Number | 29.85 |
+        | TotalCharges | Number | 29.85 |
+        
+        ⚠️ **Files with different columns (like poverty data, sales data, etc.) will not work!**
+        """)
 
     uploaded_files = st.file_uploader(
         "Choose CSV file(s)", 
@@ -280,7 +328,7 @@ def show_csv_upload():
         all_predictions = []
         
         for uploaded_file in uploaded_files:
-            st.subheader(f"File: {uploaded_file.name}")
+            st.subheader(f"📄 File: {uploaded_file.name}")
             
             # Try different encodings
             try:
@@ -294,8 +342,18 @@ def show_csv_upload():
                     try:
                         csv_data = pd.read_csv(uploaded_file, encoding='cp1252')
                     except Exception as e:
-                        st.error(f"Cannot read file {uploaded_file.name}: {str(e)}")
+                        st.error(f"❌ Cannot read file {uploaded_file.name}: {str(e)}")
                         continue
+            
+            # Validate columns
+            missing_cols, extra_cols = validate_csv_columns(csv_data)
+            
+            if missing_cols:
+                st.error(f"❌ **Invalid file format!** Missing required columns:")
+                st.code(", ".join(missing_cols))
+                st.warning(f"Your file has these columns: {', '.join(csv_data.columns.tolist())}")
+                st.info("💡 This model only works with **Telecom Customer Churn** data. Please upload a valid churn dataset.")
+                continue
             
             # Handle TotalCharges if exists
             if "TotalCharges" in csv_data.columns:
@@ -304,11 +362,11 @@ def show_csv_upload():
                 )
                 csv_data = csv_data.dropna()
 
-            st.write(f"Rows: {len(csv_data)}")
+            st.success(f"✅ Valid format - {len(csv_data)} rows")
             st.dataframe(csv_data.head(10))
             all_predictions.append((uploaded_file.name, csv_data))
         
-        if all_predictions and st.button("Predict All Files", use_container_width=True):
+        if all_predictions and st.button("🔮 Predict All Files", use_container_width=True):
             with st.spinner("Processing predictions..."):
                 for file_name, csv_data in all_predictions:
                     st.write(f"Processing: {file_name}")
@@ -329,7 +387,7 @@ def show_csv_upload():
                                 st.write(pd.DataFrame(result["predictions"]))
                             else:
                                 csv_data["Prediction"] = result["predictions"]
-                                st.success(f"{file_name}: Predictions completed!")
+                                st.success(f"✅ {file_name}: Predictions completed!")
                                 
                                 # Show results
                                 cols_to_drop = [c for c in ["Churn"] if c in csv_data.columns]
@@ -340,9 +398,9 @@ def show_csv_upload():
                                 error_msg = response.json().get("detail", "Unknown error")
                             except:
                                 error_msg = f"Status code: {response.status_code}"
-                            st.error(f"{file_name}: Error - {error_msg}")
+                            st.error(f"❌ {file_name}: Error - {error_msg}")
                     except Exception as e:
-                        st.error(f"{file_name}: Error - {str(e)}")
+                        st.error(f"❌ {file_name}: Error - {str(e)}")
 
 
 def show_past_predictions():

@@ -1,0 +1,6 @@
+[relative_paths]
+git_airflow_config = "../airflow/airflow.cfg"
+
+[local_paths]
+airflow_install_dir = "/Users/wasedoo/Documents/EPITA/M2/DSP/airflow"
+airflow_config = "/Users/wasedoo/Documents/EPITA/M2/DSP/airflow/airflow.cfg"
